@@ -23,8 +23,9 @@ from sklearn import metrics
 from random import random
 import matplotlib.pyplot as plt
 from sklearn import tree
+import seaborn as sns
 
-chessGamesData = pd.read_csv('games.csv')
+chessGamesData = pd.read_csv('./data/games.csv')
 chess = chessGamesData
 
 '''
@@ -44,7 +45,6 @@ le = preprocessing.LabelEncoder()
 for column_name in chess_features.columns:
     if (chess_features[column_name].dtype == object):
         chess_features[column_name] = le.fit_transform(chess_features[column_name])
-   
 
 # normalizamos los datos
 chess_features = StandardScaler().fit_transform(chess_features)
@@ -58,6 +58,19 @@ y_pred = algReg.predict(X_test)
 cnf_matriz = metrics.confusion_matrix(y_test,y_pred)
 print(cnf_matriz)
 print("Accuracy regresión", metrics.accuracy_score(y_test,y_pred))
+
+class_names = ["black","white","draw"]
+fig, ax = plt.subplots()
+tick_marks = np.arange(len(class_names))
+plt.xticks(tick_marks, class_names)
+plt.yticks(tick_marks, class_names)
+sns.heatmap(pd.DataFrame(cnf_matriz), annot= True, cmap = 'Blues_r', fmt='g')
+ax.xaxis.set_label_position('top')
+plt.tight_layout()
+plt.title('Matriz de confusion',y = 1.1)
+plt.ylabel('Etiqueta actual')
+plt.xlabel('Etiqueta prediccion')
+plt.show()
 
 # CLASIFICACION MEDIANTE ARBOLES
 arbol = tree.DecisionTreeClassifier(criterion='entropy')
