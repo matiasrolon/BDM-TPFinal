@@ -1,0 +1,24 @@
+
+Objetivo: Predecir la edad que vivió una persona (gente famosa) a partir de ciertas caracteristicas.
+Técnica: Support Vector Regression
+
+
+FEATURES:
+[Originales]
+- Nacionalidad
+- Genero
+- Ocupación
+- Causa de muerte
+- Año de nacimiento 
+- Año de muerte
+[Calculados]
+- Siglo de nacimiento
+- Decada de nacimiento
+- Siglo de muerte
+- Decada de muerte
+- Cantidad de ocupaciones
+- Cantidad de nacionalidades
+- Cantidad eventos destacados 	-> Apartir de "short description", separando por comas, punto y coma, conectores (and)
+
+TARGET:
+- Age
