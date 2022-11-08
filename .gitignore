@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# decompress data
+ages/data/AgeDataset-V1.csv
