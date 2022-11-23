@@ -28,8 +28,7 @@ def tokenizer(text):
 if __name__ == "__main__":
     data = pd.read_csv(PATH_DATA)
     # Selecciono las primeras 5000 filas para un procesamiento mas rapido en la fase de prueba.
-    data = data.iloc[1:5000]
-    print(data)
+    data = data.iloc[0:50]
 
     # PREPROCESAMIENTO DE LOS DATOS ==================================================================================================
     # TODO: preprocesamiento de los datos. Reemplazar o descartar registros con valores nulos, atípicos, ruido, etc.
@@ -50,7 +49,13 @@ if __name__ == "__main__":
 
     # auxiliares
     qMaxOcu = 0
+    dataSize = len(data)
 
+    newColumnsOccupation = {
+        "unknown": np.zeros(dataSize)
+    }
+
+    print("largo dataset",dataSize)
     # Calculo los features para cada instancia
     for i in data.index:
         # Datos originales
@@ -105,6 +110,23 @@ if __name__ == "__main__":
         qantCountriesArr.append(qCountries)
         qantFeaturedEventsArr.append(qEvents)
 
+        # Verifica ocupaciones nuevas, para crear columnas binarias para cada registro. (1 o 0 segun haya tenido esa ocupacion)
+        # Se utiliza esta logica custom, ya que con get_dummies no se logra destinguir cuando un registro tiene varias ocupaciones separadas por ";"
+        idx = i
+        if occupation is not None:
+            for occName in occupation.split(";"):
+                if occName in newColumnsOccupation:
+                    #print("es ", occName ," index:", idx)
+                    newColumnsOccupation[occName.strip()][idx] = 1
+                else:
+                    #print("creo", occName, " index", idx)
+                    newColumnsOccupation[occName.strip()] = np.zeros(dataSize)
+                    #print("largo nueva column", len(newColumnsOccupation[occName.strip()]))
+                    newColumnsOccupation[occName.strip()][idx] = 1
+        else:
+            newColumnsOccupation["unknown"][idx] = 1
+
+    print("nuevas profesioens encontradas", newColumnsOccupation)
     # print(qantCountriesArr)
     data['birthCentury'] = birthCenturyArr
     data['deathCentury'] = deathCenturyArr
@@ -114,26 +136,25 @@ if __name__ == "__main__":
     data['qantCountries'] = qantCountriesArr
     data['qantFeaturedEvents'] = qantFeaturedEventsArr
 
-    # Numerizamos atributos categoricos si los hubiera.
-    le = preprocessing.LabelEncoder()
-    for column_name in data.columns:
-        if (data[column_name].dtype == object) and (column_name != TARGET_COLUMN):
-            data[column_name] = le.fit_transform(data[column_name])
-
-    print("maxima cantidad de ocupacioens encontradas en un solo registro:",str(qMaxOcu))
-    print(data["Occupation"])
-    # Separamos entre columnas features y columna target
-    data_features = data[['Gender', 'Country', 'Occupation', 'Birth year', 'Death year',
-        'Manner of death', 'birthCentury', 'deathCentury', 'birthDecade', 'deathDecade', 'qantOccupations',
-        'qantCountries', 'qantFeaturedEvents']]
+    for column in newColumnsOccupation.keys():
+        newName = "occupation_" + column.replace(" ","_").lower()
+        data[newName] = newColumnsOccupation[column]
 
     data_target = data[TARGET_COLUMN]
+    # Eliminamos columna que no nos serviran para el modelo de regresión
+    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Occupation'], axis=1)
+    print("data features", data_features.columns)
 
-    # normalizamos los datos
+    # Numerizamos atributos categoricos si los hubiera.
+    le = preprocessing.LabelEncoder()
+    for column_name in data_features.columns:
+        if data_features[column_name].dtype == object:
+            print("entro", column_name)
+            data_features[column_name] = le.fit_transform(data_features[column_name])
+
+    # Normalizamos los datos
     data_features = StandardScaler().fit_transform(data_features)
-    # print(data_features)
-    # TODO: normalización de los datos.
-
+    print(data_features)
 
 
 
