@@ -4,6 +4,7 @@ Created on Fri Jan 29 16:44:15 2021
 
 @author: Matias Rolon
 """
+import copy
 
 import pandas as pd
 import math
@@ -12,11 +13,13 @@ import re
 import datetime
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVR
 
 # VARIABLES GLOBALES
 PATH_ROOT = './'
 PATH_DATA = './data/AgeDataset-V1.csv'
 TARGET_COLUMN = "Age of death"
+Q_REGISTERS = 500
 
 def tokenizer(text):
     text = re.sub('[-\[!\"\$%&*\(\)=/|:,]',' ',text)    # Quita simbolos especiales
@@ -24,11 +27,27 @@ def tokenizer(text):
     result = text.split(' ')                            # Separa las palabras resultantes en un array.
     return result
 
+def normalizateCategoricalColumn(value, idx, newColumns):
+    if value is not None:
+        for valueName in value.split(";"):
+            if valueName in newColumns:
+                # print("es ", occName ," index:", idx)
+                newColumns[valueName.strip()][idx] = 1
+            else:
+                # print("creo", occName, " index", idx)
+                newColumns[valueName.strip()] = np.zeros(dataSize)
+                # print("largo nueva column", len(newColumnsOccupation[occName.strip()]))
+                newColumns[valueName.strip()][idx] = 1
+    else:
+        newColumns["unknown"][idx] = 1
+
+    return newColumns
 
 if __name__ == "__main__":
     data = pd.read_csv(PATH_DATA)
-    # Selecciono las primeras 5000 filas para un procesamiento mas rapido en la fase de prueba.
-    data = data.iloc[0:50]
+    # Selecciono las primeras N filas para un procesamiento mas rapido en la fase de prueba.
+    if Q_REGISTERS is not None:
+        data = data.iloc[0:Q_REGISTERS]
 
     # PREPROCESAMIENTO DE LOS DATOS ==================================================================================================
     # TODO: preprocesamiento de los datos. Reemplazar o descartar registros con valores nulos, atípicos, ruido, etc.
@@ -51,9 +70,12 @@ if __name__ == "__main__":
     qMaxOcu = 0
     dataSize = len(data)
 
-    newColumnsOccupation = {
+    defaultNewColumnsObject = {
         "unknown": np.zeros(dataSize)
     }
+    newColumnsOccupation = copy.deepcopy(defaultNewColumnsObject)
+    newColumnsCountry = copy.deepcopy(defaultNewColumnsObject)
+    newColumnsMannerDeath = copy.deepcopy(defaultNewColumnsObject)
 
     print("largo dataset",dataSize)
     # Calculo los features para cada instancia
@@ -64,6 +86,7 @@ if __name__ == "__main__":
         occupation = str(data['Occupation'][i])
         country = str(data['Country'][i])
         shortDescription = str(data['Short description'][i])
+        mannerOfDeath = str(data['Manner of death'][i])
 
         # Calcula siglo de nacimiento
         birthCentury = int((int(birthYear)/100)-1)
@@ -110,21 +133,12 @@ if __name__ == "__main__":
         qantCountriesArr.append(qCountries)
         qantFeaturedEventsArr.append(qEvents)
 
-        # Verifica ocupaciones nuevas, para crear columnas binarias para cada registro. (1 o 0 segun haya tenido esa ocupacion)
+        # Verifica ocupaciones y paises nuevos, para crear columnas binarias segun los valores de todos los registros.
         # Se utiliza esta logica custom, ya que con get_dummies no se logra destinguir cuando un registro tiene varias ocupaciones separadas por ";"
         idx = i
-        if occupation is not None:
-            for occName in occupation.split(";"):
-                if occName in newColumnsOccupation:
-                    #print("es ", occName ," index:", idx)
-                    newColumnsOccupation[occName.strip()][idx] = 1
-                else:
-                    #print("creo", occName, " index", idx)
-                    newColumnsOccupation[occName.strip()] = np.zeros(dataSize)
-                    #print("largo nueva column", len(newColumnsOccupation[occName.strip()]))
-                    newColumnsOccupation[occName.strip()][idx] = 1
-        else:
-            newColumnsOccupation["unknown"][idx] = 1
+        newColumnsOccupation = normalizateCategoricalColumn(occupation, idx, newColumnsOccupation)
+        newColumnsCountry = normalizateCategoricalColumn(country, idx, newColumnsCountry)
+        newColumnsMannerDeath = normalizateCategoricalColumn(mannerOfDeath, idx, newColumnsMannerDeath)
 
     print("nuevas profesioens encontradas", newColumnsOccupation)
     # print(qantCountriesArr)
@@ -136,25 +150,35 @@ if __name__ == "__main__":
     data['qantCountries'] = qantCountriesArr
     data['qantFeaturedEvents'] = qantFeaturedEventsArr
 
-    for column in newColumnsOccupation.keys():
-        newName = "occupation_" + column.replace(" ","_").lower()
-        data[newName] = newColumnsOccupation[column]
+    newColumnsArray = [
+        [newColumnsOccupation, "occupation"],
+        [newColumnsCountry, "country"],
+        [newColumnsMannerDeath, "manner_death"]
+    ]
+    for newColumnsObject in newColumnsArray:
+        print(newColumnsObject[0].keys())
+        for column in newColumnsObject[0].keys():
+            newName = newColumnsObject[1] + "_" + column.replace(" ", "_").lower()
+            #data[newName] = newColumnsObject[0][column]
+            data.insert(1, newName, newColumnsObject[0][column])
 
     data_target = data[TARGET_COLUMN]
-    # Eliminamos columna que no nos serviran para el modelo de regresión
-    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Occupation'], axis=1)
-    print("data features", data_features.columns)
+    # Eliminamos columna que no nos serviran para el modelo de regresión o que ya vueron normalizadas
+    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Occupation', 'Country', "Manner of death"], axis=1)
+    print("columnas features", data_features.columns)
 
     # Numerizamos atributos categoricos si los hubiera.
     le = preprocessing.LabelEncoder()
     for column_name in data_features.columns:
         if data_features[column_name].dtype == object:
-            print("entro", column_name)
             data_features[column_name] = le.fit_transform(data_features[column_name])
 
     # Normalizamos los datos
     data_features = StandardScaler().fit_transform(data_features)
-    print(data_features)
+
+    #print(data_features)
+
+
 
 
 
