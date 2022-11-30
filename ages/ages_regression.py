@@ -12,14 +12,16 @@ import numpy as np
 import re
 import datetime
 from sklearn import preprocessing
+from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 from sklearn.svm import SVR
 
 # VARIABLES GLOBALES
 PATH_ROOT = './'
 PATH_DATA = './data/AgeDataset-V1.csv'
 TARGET_COLUMN = "Age of death"
-Q_REGISTERS = 500
+Q_REGISTERS =10000
 
 def tokenizer(text):
     text = re.sub('[-\[!\"\$%&*\(\)=/|:,]',' ',text)    # Quita simbolos especiales
@@ -54,6 +56,7 @@ if __name__ == "__main__":
     data.loc[data['Manner of death'].isnull(), 'Manner of death'] = 'Unknown'
     data.loc[data['Death year'].isnull(), 'Death year'] = 0
     data.loc[data['Birth year'].isnull(), 'Birth year'] = 0
+    data = data.dropna(subset=[TARGET_COLUMN], axis=0)
 
     # AGREGA NUEVOS FEATURES CALCULADOS AL DATASET ===================================================================================
     # Inicializo arrays de nuevos features
@@ -140,7 +143,7 @@ if __name__ == "__main__":
         newColumnsCountry = normalizateCategoricalColumn(country, idx, newColumnsCountry)
         newColumnsMannerDeath = normalizateCategoricalColumn(mannerOfDeath, idx, newColumnsMannerDeath)
 
-    print("nuevas profesioens encontradas", newColumnsOccupation)
+    # print("nuevas profesioens encontradas", newColumnsOccupation)
     # print(qantCountriesArr)
     data['birthCentury'] = birthCenturyArr
     data['deathCentury'] = deathCenturyArr
@@ -155,13 +158,18 @@ if __name__ == "__main__":
         [newColumnsCountry, "country"],
         [newColumnsMannerDeath, "manner_death"]
     ]
+
+    # Agrega nuevas columnas binarias.
     for newColumnsObject in newColumnsArray:
-        print(newColumnsObject[0].keys())
+        # print(newColumnsObject[0].keys())
         for column in newColumnsObject[0].keys():
             newName = newColumnsObject[1] + "_" + column.replace(" ", "_").lower()
             #data[newName] = newColumnsObject[0][column]
-            data.insert(1, newName, newColumnsObject[0][column])
+            if newName not in data.columns:
+                newSerie = pd.Series(newColumnsObject[0][column])
+                data = pd.concat([data, newSerie.rename(newName)], axis=1)
 
+    print(data.info())
     data_target = data[TARGET_COLUMN]
     # Eliminamos columna que no nos serviran para el modelo de regresión o que ya vueron normalizadas
     data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Occupation', 'Country', "Manner of death"], axis=1)
@@ -176,7 +184,17 @@ if __name__ == "__main__":
     # Normalizamos los datos
     data_features = StandardScaler().fit_transform(data_features)
 
-    #print(data_features)
+    # Partimos el conjunto de entrenamiento. Para añadir replicabilidad usamos el random state
+    X_train, X_test, y_train, y_test = train_test_split(data_features, data_target, test_size=0.2, random_state=2)
+    print('Cantidad de datos de entrenamiento: ',X_train.shape)
+    print('Cantidad de datos de testing:', X_test.shape)
+
+    regressor = SVR(kernel='rbf')
+    regressor.fit(X_train, y_train)
+    y_pred = regressor.predict(X_test)
+
+    score = regressor.score(X_test, y_test)
+    print("score",score)
 
 
 
