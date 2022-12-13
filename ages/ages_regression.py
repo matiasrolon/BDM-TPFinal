@@ -10,7 +10,9 @@ import pandas as pd
 import math
 import numpy as np
 import re
+import time
 import datetime
+import copy
 from sklearn import preprocessing
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
@@ -21,7 +23,7 @@ from sklearn.svm import SVR
 PATH_ROOT = './'
 PATH_DATA = './data/AgeDataset-V1.csv'
 TARGET_COLUMN = "Age of death"
-Q_REGISTERS =10000
+Q_REGISTERS =500000
 
 def tokenizer(text):
     text = re.sub('[-\[!\"\$%&*\(\)=/|:,]',' ',text)    # Quita simbolos especiales
@@ -53,11 +55,14 @@ if __name__ == "__main__":
 
     # PREPROCESAMIENTO DE LOS DATOS ==================================================================================================
     # TODO: preprocesamiento de los datos. Reemplazar o descartar registros con valores nulos, atípicos, ruido, etc.
+    print("######## Preprocesamiento del dataset ########")
     data.loc[data['Manner of death'].isnull(), 'Manner of death'] = 'Unknown'
     data.loc[data['Death year'].isnull(), 'Death year'] = 0
     data.loc[data['Birth year'].isnull(), 'Birth year'] = 0
     data = data.dropna(subset=[TARGET_COLUMN], axis=0)
-
+    # Luego de todos los metodos de preprocesamiento debemos resetear el index del dataframe.
+    data = data.reset_index(drop=True)
+    print("- Agrega nuevos features calculados...")
     # AGREGA NUEVOS FEATURES CALCULADOS AL DATASET ===================================================================================
     # Inicializo arrays de nuevos features
     # Features calculados con el dataset
@@ -81,8 +86,12 @@ if __name__ == "__main__":
     newColumnsMannerDeath = copy.deepcopy(defaultNewColumnsObject)
 
     print("largo dataset",dataSize)
+    print("index dataset", data.index)
+
     # Calculo los features para cada instancia
     for i in data.index:
+        if i % 10 == 0:
+            print("procesando index ", i)
         # Datos originales
         birthYear = data['Birth year'][i]
         deathYear = data['Death year'][i]
@@ -90,7 +99,7 @@ if __name__ == "__main__":
         country = str(data['Country'][i])
         shortDescription = str(data['Short description'][i])
         mannerOfDeath = str(data['Manner of death'][i])
-
+        data['Occupation'][i] = str(copy.deepcopy(data['Occupation'][i])).split(";")[0]
         # Calcula siglo de nacimiento
         birthCentury = int((int(birthYear)/100)-1)
         # Calcila siglo de muerte
@@ -143,7 +152,6 @@ if __name__ == "__main__":
         newColumnsCountry = normalizateCategoricalColumn(country, idx, newColumnsCountry)
         newColumnsMannerDeath = normalizateCategoricalColumn(mannerOfDeath, idx, newColumnsMannerDeath)
 
-    # print("nuevas profesioens encontradas", newColumnsOccupation)
     # print(qantCountriesArr)
     data['birthCentury'] = birthCenturyArr
     data['deathCentury'] = deathCenturyArr
@@ -154,30 +162,41 @@ if __name__ == "__main__":
     data['qantFeaturedEvents'] = qantFeaturedEventsArr
 
     newColumnsArray = [
-        [newColumnsOccupation, "occupation"],
+        #[newColumnsOccupation, "occupation"],
         [newColumnsCountry, "country"],
         [newColumnsMannerDeath, "manner_death"]
     ]
+    #print("nuevas columnas para occupation", len(newColumnsOccupation))
+    print("nuevas columnas para country", len(newColumnsCountry))
+    print("nuevas columnas para manner_death", len(newColumnsMannerDeath))
 
     # Agrega nuevas columnas binarias.
+    print("- Agrega nuevas profesiones encontradas")
+    i = 1
+    total = len(newColumnsCountry) + len(newColumnsMannerDeath)
     for newColumnsObject in newColumnsArray:
         # print(newColumnsObject[0].keys())
+        print("Campo: ", newColumnsObject[1])
         for column in newColumnsObject[0].keys():
             newName = newColumnsObject[1] + "_" + column.replace(" ", "_").lower()
             #data[newName] = newColumnsObject[0][column]
             if newName not in data.columns:
                 newSerie = pd.Series(newColumnsObject[0][column])
+                print(newName, "|", i, "/", total)
+                i += 1
                 data = pd.concat([data, newSerie.rename(newName)], axis=1)
 
+    print("######## Definicion del dataset ########")
     print(data.info())
     data_target = data[TARGET_COLUMN]
     # Eliminamos columna que no nos serviran para el modelo de regresión o que ya vueron normalizadas
-    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Occupation', 'Country', "Manner of death"], axis=1)
-    print("columnas features", data_features.columns)
+    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Country', "Manner of death"], axis=1)
+    print("- Nuevas columnas agregadas: ", data_features.columns)
 
     # Numerizamos atributos categoricos si los hubiera.
     le = preprocessing.LabelEncoder()
     for column_name in data_features.columns:
+        print("- normalizando columna ", column_name)
         if data_features[column_name].dtype == object:
             data_features[column_name] = le.fit_transform(data_features[column_name])
 
@@ -186,15 +205,22 @@ if __name__ == "__main__":
 
     # Partimos el conjunto de entrenamiento. Para añadir replicabilidad usamos el random state
     X_train, X_test, y_train, y_test = train_test_split(data_features, data_target, test_size=0.2, random_state=2)
-    print('Cantidad de datos de entrenamiento: ',X_train.shape)
-    print('Cantidad de datos de testing:', X_test.shape)
+    print('- Cantidad de datos de entrenamiento: ',X_train.shape)
+    print('- Cantidad de datos de testing:', X_test.shape)
 
+    print("######## Entrenamiento del modelo ########")
+    print("- Este proceso puede demorar algunos minutos.")
+    initime = time.time()
     regressor = SVR(kernel='rbf')
     regressor.fit(X_train, y_train)
+    print("- Entrenamiento finalizado.")
+    endtime = time.time()
+    print("- Tiempo total: ", endtime - initime, " seg.")
+    print("######## Prediccion del modelo ########")
     y_pred = regressor.predict(X_test)
-
+    print("######## Mediciones finales ########")
     score = regressor.score(X_test, y_test)
-    print("score",score)
+    print("- Score",score)
 
 
 
