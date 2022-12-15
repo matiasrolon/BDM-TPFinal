@@ -23,7 +23,7 @@ from sklearn.svm import SVR
 PATH_ROOT = './'
 PATH_DATA = './data/AgeDataset-V1.csv'
 TARGET_COLUMN = "Age of death"
-Q_REGISTERS =500000
+Q_REGISTERS =10000
 
 def tokenizer(text):
     text = re.sub('[-\[!\"\$%&*\(\)=/|:,]',' ',text)    # Quita simbolos especiales
@@ -162,15 +162,16 @@ if __name__ == "__main__":
     data['qantFeaturedEvents'] = qantFeaturedEventsArr
 
     newColumnsArray = [
-        #[newColumnsOccupation, "occupation"],
+        [newColumnsOccupation, "occupation"],
         [newColumnsCountry, "country"],
         [newColumnsMannerDeath, "manner_death"]
     ]
-    #print("nuevas columnas para occupation", len(newColumnsOccupation))
+    print("nuevas columnas para occupation", len(newColumnsOccupation))
     print("nuevas columnas para country", len(newColumnsCountry))
     print("nuevas columnas para manner_death", len(newColumnsMannerDeath))
 
     # Agrega nuevas columnas binarias.
+    initime = time.time()
     print("- Agrega nuevas profesiones encontradas")
     i = 1
     total = len(newColumnsCountry) + len(newColumnsMannerDeath)
@@ -190,15 +191,20 @@ if __name__ == "__main__":
     print(data.info())
     data_target = data[TARGET_COLUMN]
     # Eliminamos columna que no nos serviran para el modelo de regresión o que ya vueron normalizadas
-    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Country', "Manner of death"], axis=1)
+    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Country', "Manner of death", "Occupation"], axis=1)
     print("- Nuevas columnas agregadas: ", data_features.columns)
+    endtime = time.time()
+    print("- Tiempo de agregado para nuevas columnas: ", endtime - initime, " seg.")
 
+    initime = time.time()
     # Numerizamos atributos categoricos si los hubiera.
     le = preprocessing.LabelEncoder()
     for column_name in data_features.columns:
         print("- normalizando columna ", column_name)
         if data_features[column_name].dtype == object:
             data_features[column_name] = le.fit_transform(data_features[column_name])
+    endtime = time.time()
+    print("- Tiempo normalizacion: ", endtime - initime, " seg.")
 
     # Normalizamos los datos
     data_features = StandardScaler().fit_transform(data_features)
@@ -215,7 +221,7 @@ if __name__ == "__main__":
     regressor.fit(X_train, y_train)
     print("- Entrenamiento finalizado.")
     endtime = time.time()
-    print("- Tiempo total: ", endtime - initime, " seg.")
+    print("- Tiempo entrenamiento: ", endtime - initime, " seg.")
     print("######## Prediccion del modelo ########")
     y_pred = regressor.predict(X_test)
     print("######## Mediciones finales ########")
