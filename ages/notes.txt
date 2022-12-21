@@ -22,3 +22,12 @@ FEATURES:
 
 TARGET:
 - Age
+
+
+
+
+ Q		Tiempo entrenamiento		score
+ 10000		11 seg				0.11
+ 30000		2 minutos			0.17
+ 500000		7 hs 8 min			0.94
+

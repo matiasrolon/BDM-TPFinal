@@ -23,7 +23,7 @@ from sklearn.svm import SVR
 PATH_ROOT = './'
 PATH_DATA = './data/AgeDataset-V1.csv'
 TARGET_COLUMN = "Age of death"
-Q_REGISTERS =10000
+Q_REGISTERS =500000
 
 def tokenizer(text):
     text = re.sub('[-\[!\"\$%&*\(\)=/|:,]',' ',text)    # Quita simbolos especiales
@@ -81,9 +81,9 @@ if __name__ == "__main__":
     defaultNewColumnsObject = {
         "unknown": np.zeros(dataSize)
     }
-    newColumnsOccupation = copy.deepcopy(defaultNewColumnsObject)
-    newColumnsCountry = copy.deepcopy(defaultNewColumnsObject)
-    newColumnsMannerDeath = copy.deepcopy(defaultNewColumnsObject)
+    # newColumnsOccupation = copy.deepcopy(defaultNewColumnsObject)
+    # newColumnsCountry = copy.deepcopy(defaultNewColumnsObject)
+    # newColumnsMannerDeath = copy.deepcopy(defaultNewColumnsObject)
 
     print("largo dataset",dataSize)
     print("index dataset", data.index)
@@ -100,6 +100,8 @@ if __name__ == "__main__":
         shortDescription = str(data['Short description'][i])
         mannerOfDeath = str(data['Manner of death'][i])
         data['Occupation'][i] = str(copy.deepcopy(data['Occupation'][i])).split(";")[0]
+        data['Country'][i] = str(copy.deepcopy(data['Country'][i])).split(";")[0]
+        data['Manner of death'][i] = str(copy.deepcopy(data['Manner of death'][i])).split(";")[0]
         # Calcula siglo de nacimiento
         birthCentury = int((int(birthYear)/100)-1)
         # Calcila siglo de muerte
@@ -148,9 +150,9 @@ if __name__ == "__main__":
         # Verifica ocupaciones y paises nuevos, para crear columnas binarias segun los valores de todos los registros.
         # Se utiliza esta logica custom, ya que con get_dummies no se logra destinguir cuando un registro tiene varias ocupaciones separadas por ";"
         idx = i
-        newColumnsOccupation = normalizateCategoricalColumn(occupation, idx, newColumnsOccupation)
-        newColumnsCountry = normalizateCategoricalColumn(country, idx, newColumnsCountry)
-        newColumnsMannerDeath = normalizateCategoricalColumn(mannerOfDeath, idx, newColumnsMannerDeath)
+        # newColumnsOccupation = normalizateCategoricalColumn(occupation, idx, newColumnsOccupation)
+        # newColumnsCountry = normalizateCategoricalColumn(country, idx, newColumnsCountry)
+        # newColumnsMannerDeath = normalizateCategoricalColumn(mannerOfDeath, idx, newColumnsMannerDeath)
 
     # print(qantCountriesArr)
     data['birthCentury'] = birthCenturyArr
@@ -161,40 +163,41 @@ if __name__ == "__main__":
     data['qantCountries'] = qantCountriesArr
     data['qantFeaturedEvents'] = qantFeaturedEventsArr
 
-    newColumnsArray = [
-        [newColumnsOccupation, "occupation"],
-        [newColumnsCountry, "country"],
-        [newColumnsMannerDeath, "manner_death"]
-    ]
-    print("nuevas columnas para occupation", len(newColumnsOccupation))
-    print("nuevas columnas para country", len(newColumnsCountry))
-    print("nuevas columnas para manner_death", len(newColumnsMannerDeath))
 
     # Agrega nuevas columnas binarias.
-    initime = time.time()
-    print("- Agrega nuevas profesiones encontradas")
-    i = 1
-    total = len(newColumnsCountry) + len(newColumnsMannerDeath)
-    for newColumnsObject in newColumnsArray:
-        # print(newColumnsObject[0].keys())
-        print("Campo: ", newColumnsObject[1])
-        for column in newColumnsObject[0].keys():
-            newName = newColumnsObject[1] + "_" + column.replace(" ", "_").lower()
-            #data[newName] = newColumnsObject[0][column]
-            if newName not in data.columns:
-                newSerie = pd.Series(newColumnsObject[0][column])
-                print(newName, "|", i, "/", total)
-                i += 1
-                data = pd.concat([data, newSerie.rename(newName)], axis=1)
+    # newColumnsArray = [
+    #     [newColumnsOccupation, "occupation"],
+    #     [newColumnsCountry, "country"],
+    #     [newColumnsMannerDeath, "manner_death"]
+    # ]
+    # print("nuevas columnas para occupation", len(newColumnsOccupation))
+    # print("nuevas columnas para country", len(newColumnsCountry))
+    # print("nuevas columnas para manner_death", len(newColumnsMannerDeath))
+    #
+    # initime = time.time()
+    # print("- Agrega nuevas profesiones encontradas")
+    # i = 1
+    # total = len(newColumnsCountry) + len(newColumnsMannerDeath)
+    # for newColumnsObject in newColumnsArray:
+    #     # print(newColumnsObject[0].keys())
+    #     print("Campo: ", newColumnsObject[1])
+    #     for column in newColumnsObject[0].keys():
+    #         newName = newColumnsObject[1] + "_" + column.replace(" ", "_").lower()
+    #         #data[newName] = newColumnsObject[0][column]
+    #         if newName not in data.columns:
+    #             newSerie = pd.Series(newColumnsObject[0][column])
+    #             print(newName, "|", i, "/", total)
+    #             i += 1
+    #             data = pd.concat([data, newSerie.rename(newName)], axis=1)
 
     print("######## Definicion del dataset ########")
     print(data.info())
     data_target = data[TARGET_COLUMN]
     # Eliminamos columna que no nos serviran para el modelo de regresión o que ya vueron normalizadas
-    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description', 'Country', "Manner of death", "Occupation"], axis=1)
+    data_features = data.drop([TARGET_COLUMN, 'Id', 'Name', 'Short description'], axis=1)
     print("- Nuevas columnas agregadas: ", data_features.columns)
     endtime = time.time()
-    print("- Tiempo de agregado para nuevas columnas: ", endtime - initime, " seg.")
+    #print("- Tiempo de agregado para nuevas columnas: ", endtime - initime, " seg.")
 
     initime = time.time()
     # Numerizamos atributos categoricos si los hubiera.
@@ -205,7 +208,7 @@ if __name__ == "__main__":
             data_features[column_name] = le.fit_transform(data_features[column_name])
     endtime = time.time()
     print("- Tiempo normalizacion: ", endtime - initime, " seg.")
-
+    pd.DataFrame(data_features).to_csv('features.csv')
     # Normalizamos los datos
     data_features = StandardScaler().fit_transform(data_features)
 
