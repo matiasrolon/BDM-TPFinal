@@ -13,6 +13,7 @@ import re
 import time
 import datetime
 import copy
+from datetime import datetime
 from sklearn import preprocessing
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
@@ -21,9 +22,11 @@ from sklearn.svm import SVR
 
 # VARIABLES GLOBALES
 PATH_ROOT = './'
+PATH_LOGS = './logs/'
 PATH_DATA = './data/AgeDataset-V1.csv'
 TARGET_COLUMN = "Age of death"
-Q_REGISTERS =500000
+Q_REGISTERS =10000
+LOG = True
 
 def tokenizer(text):
     text = re.sub('[-\[!\"\$%&*\(\)=/|:,]',' ',text)    # Quita simbolos especiales
@@ -219,18 +222,32 @@ if __name__ == "__main__":
 
     print("######## Entrenamiento del modelo ########")
     print("- Este proceso puede demorar algunos minutos.")
-    initime = time.time()
+    ini_training = time.time()
     regressor = SVR(kernel='rbf')
     regressor.fit(X_train, y_train)
     print("- Entrenamiento finalizado.")
-    endtime = time.time()
-    print("- Tiempo entrenamiento: ", endtime - initime, " seg.")
+    end_training = time.time()
+    total_training = end_training - ini_training
+    print("- Tiempo entrenamiento: ", total_training, " seg.")
     print("######## Prediccion del modelo ########")
     y_pred = regressor.predict(X_test)
     print("######## Mediciones finales ########")
     score = regressor.score(X_test, y_test)
     print("- Score",score)
 
+    if LOG:
+        now = datetime.now()
+        date_now = now.strftime("%m-%d-%Y")
+        time_now = now.strftime("%H%M%S")
+        file_logs = PATH_LOGS + date_now + "_" + time_now + ".txt"
+        f = open(file_logs, 'w')
+        print('- GENERAL -', file=f)
+        print('Fecha: ', now.strftime("%m/%d/%Y %H:%M:%S"), file=f)
+        print('Registros dataset: ', Q_REGISTERS, file=f)
+        print('- ESTADISTICAS -', file=f)
+        print('Tiempo entrenamiento: ', total_training, " seg.", file=f)
+        print('Score: ', score, file=f)
+        print("Creado log en archivo ", file_logs)
 
 
 

@@ -23,7 +23,10 @@ FEATURES:
 TARGET:
 - Age
 
-
+TODO:
+- Recorrer una primera vez el dataset para saber las profesiones/paises mas populares.
+  Luego, en lugar de agarrar el primer valor del campo, agarro aquel que este en el top 100 de esos profesiones/paises. Si no está, si agarro el primero.
+- Modularizar las regresiones de SVM, lineales, etc. en diferentes clases.  
 
 
  Q		Tiempo entrenamiento		score

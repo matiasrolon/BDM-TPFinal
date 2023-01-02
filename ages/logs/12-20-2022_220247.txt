@@ -1,0 +1,5 @@
+Fecha:  12/20/2022 22:02:47
+Registros dataset:  10000
+- ESTADISTICAS -
+Tiempo entrenamiento:  2.0203893184661865  seg.
+Score:  0.3127909177155206
